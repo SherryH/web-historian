@@ -12,9 +12,12 @@ var request = require('request');
  */
 
 var readFileAsync = Promise.promisify(fs.readFile);
-var writefileAsync = Promise.promisify(fs.writeFile);
 var appendFileAsync = Promise.promisify(fs.appendFile);
+var accessAsync = Promise.promisify(fs.access);
+
+var writefileAsync = Promise.promisify(fs.writeFile);
 var readdirAsync = Promise.promisify(fs.readdir);
+
 exports.paths = {
   siteAssets: path.join(__dirname, '../web/public'),
   archivedSites: path.join(__dirname, '../archives/sites'),
@@ -43,22 +46,48 @@ exports.readListOfUrls = function(callback) {
   });
 };
 
+exports.readListOfUrlsAsync = function() {
+  return new Promise (function(resolve, reject) {
+    readFileAsync(exports.paths.list)
+    .then(function(urlLists) {
+      //console.log('urlLists looks like file stream straight out of file ', urlLists);
+      var urlListsArray = urlLists.toString().split('\n');
+      resolve(urlListsArray);
+    })
+    .catch((error)=>{ reject(error); });
+  });
+};
+
+
 exports.isUrlInList = function(url, callback) {
   var file = exports.readListOfUrls(function(data) {
     console.log(data);
     for (var i = 0; i < data.length; i++ ) {
       if (url === data[i]) {
-        console.log(data[i]);
+        // console.log(data[i]);
         callback(true);
         return;
       }
     }
     callback(false);
   });
-
-
 };
-var isUrlInListAsync = Promise.promisify(exports.isUrlInList);
+
+
+exports.isUrlInListAsync = function (url) {
+  return  new Promise(function(resolve, reject) {
+    exports.readListOfUrlsAsync()
+    .then((urlListsArray)=>{
+      var isUrlInList = (urlListsArray.indexOf(url) !== -1);
+      resolve(isUrlInList);
+    })
+    .catch((error)=>{ throw error; });
+  });
+};
+
+
+
+//var isUrlInListAsync = Promise.promisify(exports.isUrlInList);
 exports.addUrlToList = function(url, callback) {
   //start by calling writefileasync(exports.path.list, callback) function
   isUrlInListAsync(url).then(
@@ -76,12 +105,21 @@ exports.addUrlToList = function(url, callback) {
 
 };
 
+exports.addUrlToListAsync = function(url) {
+  return new Promise((resolve, reject) =>{
+    appendFileAsync(exports.paths.list, url+'\n')
+    .then(resolve)
+    .catch((err)=>{ throw err; });
+  });
+};
+
+
 exports.isUrlArchived = function(url, callback) {
   readdirAsync(exports.paths.archivedSites).then(function(files) {
     console.log('files',files);
     for (var i = 0; i < files.length; i++) {
-      console.log('url',url);
-      console.log('files[i]',files[i]);
+      // console.log('url',url);
+      // console.log('files[i]',files[i]);
       if (url === files[i]) {
         callback(true);
         return true;
@@ -91,11 +129,21 @@ exports.isUrlArchived = function(url, callback) {
 
   }).catch(function(error) {
 
-    console.log(error);
+    // console.log(error);
     throw error;
   });
 
   //callback(false);
+};
+
+exports.isUrlArchivedAsync = function(url) {
+//return boolean
+  return new Promise((resolve, reject)=>{
+    //check the files in folder> all filename
+    accessAsync(exports.paths.archivedSites + '/'+ url)
+    .then(resolve)
+    .catch(reject);
+  });
 };
 
 exports.downloadUrls = function(urls) {
@@ -109,14 +157,22 @@ exports.downloadUrls = function(urls) {
   }
 };
 
-/*
-var request = require('request');
-
-exports.downloadUrls = function(urls) {
-  // Iterate over urls and pipe to new files
-  _.each(urls, function (url) {
-    if (!url) { return; }
-    request('http://' + url).pipe(fs.createWriteStream(exports.paths.archivedSites + '/' + url));
+exports.downloadUrlsAsync = function(urls) {
+  //** Q: hmm there is no way to call a callback to take action after writestream pipe finishes?
+  return new Promise((resolve, reject)=>{
+    var file;
+    urls.forEach((url)=>{
+      //download each url to archivedSites
+      file = fs.createWriteStream(exports.paths.archivedSites + '/' + url);
+      request('http://' + url).pipe(file);
+    });
   });
 };
-*/
+
+//--- Testing Helpers -------------
+exports.isUrlArchivedAsync('www.github.com')
+.then(()=>{
+  console.log('loaded');
+})
+.catch((err)=>{ console.log('this file not archived?', err); });
+//--------------------------------------
