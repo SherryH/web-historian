@@ -141,7 +141,9 @@ exports.isUrlArchivedAsync = function(url) {
   return new Promise((resolve, reject)=>{
     //check the files in folder> all filename
     accessAsync(exports.paths.archivedSites + '/'+ url)
-    .then(resolve)
+    .then((isArchived)=>{
+      resolve(isArchived);
+    })
     .catch(reject);
   });
 };
@@ -170,9 +172,9 @@ exports.downloadUrlsAsync = function(urls) {
 };
 
 //--- Testing Helpers -------------
-exports.isUrlArchivedAsync('www.github.com')
-.then(()=>{
-  console.log('loaded');
-})
-.catch((err)=>{ console.log('this file not archived?', err); });
+// exports.isUrlArchivedAsync('www.github.com')
+// .then(()=>{
+//   console.log('loaded');
+// })
+// .catch((err)=>{ console.log('this file not archived?', err); });
 //--------------------------------------

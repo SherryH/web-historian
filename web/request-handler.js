@@ -68,18 +68,40 @@ var serveAssets1 = function(req, callback) {
 
 exports.handleRequest = function (req, res) {
   var asset = urlUtil.parse(req.url).pathname;
+  console.log('asset:', asset);
+  console.log('req.url: ',req.url);
+  console.log('req method:', req.method);
 
-  if (asset === '/' && req.method === 'GET') {
+  if (req.method === 'GET') {
     console.log('path / GET');
-    helper.serveAssets(asset, res);
+    helper.serveAssets(asset, res, function() {
+      //if the path cannot be found in public folder or archive
+      //check if it is on list, site.txt, if yes, return loading, else error
+      (asset[0] === '/') && (asset = asset.slice(1));
+      console.log('asset trim:', asset);
+      archive.isUrlInListAsync(asset)
+      .then((found)=>{
+        console.log('found: ',found);
+        if (found) {
+          console.log('not in ');
+          helper.redirectResponse(res, '/loading.html');
+        } else {
+          helper.send404Response(res);
+        }
+      })
+      .catch(()=>{
+        helper.send404Response(res);
+      });
 
-  } else if (req.url === '/www.google.com') {
-    helper.serveAssets(asset, res);
+    });
 
   } else if (req.method === 'POST') {
-    var path = urlUtil.parse(req.url).pathname;
+    //url is in asset
 
-    var filePath = archive.paths.archivedSites + req.url;
+    var filePath = archive.paths.archivedSites + '/' + asset;
+
+
+    //.catch((err)=>{ throw err; });
 
     //get url
     // is in site.txt?
@@ -94,9 +116,31 @@ exports.handleRequest = function (req, res) {
 
 
     helper.collectDataAsync(req)
-    .then(function(data) {
-      data = data.split('=')[1]; //remove the 'url='
-      return writeFileAsync(archive.paths.list, data + '\n');
+    .then(function(url) {
+      url = url.split('=')[1]; //remove the 'url='
+      //return writeFileAsync(archive.paths.list, url + '\n');
+      archive.isUrlInListAsync(url)
+      .then((isInList)=>{
+        if (isInList) {
+          return archive.isUrlArchivedAsync(url)
+          .then((isArchived)=>{
+            if (isArchived) {
+              helper.redirectResponse(res, '/'+ url);
+            } else {
+              helper.redirectResponse(res, '/loading.html');
+            }
+          });
+          //.catch((error)=>{ helper.redirectResponse(res, '/loading.html'); });
+        } else {
+          //if url is not in list, append to sites.txt
+          return archive.addUrlToListAsync(url)
+          .then(()=>{
+            console.log('go into redirect response~');
+            //***Q why my redirection to loading page is not working?
+            helper.redirectResponse(res, '/loading.html');
+          });
+        }
+      });
     })
     .then( function () {
       helper.sendResponse(res, '', 302);

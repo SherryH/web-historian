@@ -25,7 +25,8 @@ exports.serveAssets = function(asset, res, callback) {
   })
   .catch(function(err) {
     //request file is not in public folder, user wants archived file
-    // console.log('error: ',err);
+    console.log('error: ',err);
+    console.log('redirect asset: ', asset);
     return readFileAsync(archive.paths.archivedSites + asset);
   })
   .then(function(content) {
@@ -33,8 +34,9 @@ exports.serveAssets = function(asset, res, callback) {
   })
   .catch(function(err) {
     //file doesnt exist in archive!
-    console.log(err);
-    throw err;
+    callback ? callback() : exports.send404Response(res);
+    //console.log(err);
+    //throw err;
   });
 };
 
@@ -69,6 +71,13 @@ exports.sendResponse = function(res, content, statusCode = 200) {
 
 exports.send404Response = function(res) {
   res.writeHead(404);
+  res.end('404: Page not found');
+};
+
+exports.redirectResponse = function(res, redirectUrl) {
+  console.log('loadingpage: ', redirectUrl);
+  res.writeHead(302, {Location: redirectUrl});
+  // console.log(res);
   res.end();
 };
 
