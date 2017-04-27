@@ -125,8 +125,11 @@ exports.handleRequest = function (req, res) {
           return archive.isUrlArchivedAsync(url)
           .then((isArchived)=>{
             if (isArchived) {
+              console.log('before res');
               helper.redirectResponse(res, '/'+ url);
+              console.log('after res');
             } else {
+              console.log('before res not found');
               helper.redirectResponse(res, '/loading.html');
             }
           });
@@ -143,7 +146,8 @@ exports.handleRequest = function (req, res) {
       });
     })
     .then( function () {
-      helper.sendResponse(res, '', 302);
+      console.log('I got to this line');
+      //helper.sendResponse(res, '', 302);
     })
     .catch(function(err) {
       console.log('404?');
